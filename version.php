@@ -26,8 +26,8 @@
  */
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version    = 2017080500;   // The current module version (Date: YYYYMMDDXX)
-$plugin->requires   = 2017033100;   // Requires this Moodle version
-$plugin->component  = 'tool_mergefiles'; // Full name of the plugin (used for diagnostics)
+$plugin->version    = 2017080500;           // The current module version (Date: YYYYMMDDXX)
+$plugin->requires   = 2017033100;           // Requires this Moodle version
+$plugin->component  = 'tool_mergefiles';    // Full name of the plugin (used for diagnostics)
 $plugin->maturity   = MATURITY_ALPHA;
-$plugin->release    = '3.0';    // This is our third revision for Moodle 3.2.2+ and above branches.
+$plugin->release    = '1.0';                // This is our first revision for Moodle 3.2.2+ and above branches.
