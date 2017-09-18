@@ -17,7 +17,7 @@
 /**
  * Merges pdf documents in a course.
  *
- * This file generates a merged pdf document of all the pdfs found in a particular course.
+ * This file generates a merged pdf document of all the pdf files found in a particular course.
  *
  * @package     tool_mergefiles
  * @copyright   2017 IIT Bombay
@@ -27,7 +27,9 @@
 
 require(__DIR__ . '/../../../config.php');
 require_once($CFG->libdir . '/adminlib.php');
+require_once($CFG->libdir . '/moodlelib.php');
 require_once($CFG->libdir . '/filelib.php');
+
 require_once($CFG->dirroot . '/course/lib.php');
 require_once($CFG->dirroot . '/backup/cc/cc_lib/gral_lib/pathutils.php'); // For using function rmdirr(string $dirname).
 require_once($CFG->dirroot . '/admin/tool/mergefiles/performmerge_form.php');
@@ -57,8 +59,7 @@ $strname            = get_string('name');
 $strresources       = get_string('resources');
 $strsize            = get_string('size');
 $strsizeb           = get_string('sizeb');
-$heading            = get_string('heading', 'tool_mergefiles');
-$note               = get_string('note', 'tool_mergefiles');
+$strsizemb          = get_string('sizemb');
 $pluginname         = get_string('pluginname', 'tool_mergefiles');
 
 $PAGE->set_url($url);
@@ -69,8 +70,6 @@ $PAGE->set_title($course->shortname . ' | ' . $pluginname);
 $PAGE->set_heading($course->fullname . ' | ' . $pluginname);
 
 echo $OUTPUT->header();
-echo $OUTPUT->heading($heading);
-echo $note;
 
 // Source code from course/resources.php...used for getting all the pdf files in the course in order to merge them.
 
@@ -92,8 +91,8 @@ foreach($allmodules as $key => $module) {
 }
 
 $modinfo = get_fast_modinfo($course); // Fetch all course data.
-$usesections = course_format_uses_sections($course->format);
 
+$usesections = course_format_uses_sections($course->format);
 $cms = array ();
 $resources = array ();
 
@@ -125,6 +124,7 @@ if (!$cms) {
 
 $table = new html_table();
 $table->attributes['class'] = 'generaltable mod_index';
+$table->caption = get_string('coursefiles', 'tool_mergefiles');
 
 if ($usesections) {
     $strsectionname = get_string('sectionname', 'format_' . $course->format);
@@ -132,7 +132,7 @@ if ($usesections) {
             $strsectionname,
             $strname,
             $strintro,
-            $strsize . ' (' . $strsizeb . ')');
+            $strsize);
 
     $table->align = array (
             'center',
@@ -144,7 +144,7 @@ if ($usesections) {
             $strlastmodified,
             $strname,
             $strintro,
-            $strsize . ' (' . $strsizeb . ')');
+            $strsize);
 
     $table->align = array (
             'left',
@@ -155,7 +155,7 @@ if ($usesections) {
 
 $fs = get_file_storage();
 
-$tempdir = $CFG->tempdir . '/mergefiles'; // Create temporary storage location for files.
+$tempdir = $CFG->tempdir . '/tool_mergefiles'; // Create temporary storage location for files.
 if (!file_exists($tempdir)) {
     $mkdir = mkdir($tempdir, 0777, true);
 }
@@ -186,7 +186,7 @@ foreach($cms as $cm) {
     $class = $cm->visible ? '' : 'class="dimmed"'; // Hidden modules are dimmed.
 
     // ----------------------------------------------------------------------------
-    // Source from mod/resource/view.php...used for getting contenthash of the file.
+    // Source from mod/resource/view.php.
 
     $context = context_module::instance($cm->id);
     $files = $fs->get_area_files($context->id, 'mod_resource', 'content', 0, 'sortorder DESC, id ASC', false);
@@ -205,16 +205,16 @@ foreach($cms as $cm) {
 
     static $p = 1;
     $file->copy_content_to($tempdirpath . $p . '.pdf');
-    $arr[$p] = $tempdirpath . $p . '.pdf';
+    $course_files[$p] = $tempdirpath . $p . '.pdf';
 
     $table->data[] = array (
             $printsection,
             "<a $class $extra href=\"" . $url . "\">" . $icon . $cm->get_formatted_name() . "</a>",
             $file->get_filename(),
-            $file->get_filesize());
+            number_format((($file->get_filesize() / 1000) / 1000), 2) . ' ' . $strsizemb);
     $p++;
-}
 
+}
 echo html_writer::table($table);
 
 $mform = new performmerge_form(null);
@@ -222,18 +222,24 @@ $formdata = array ('courseid' => $id);
 $mform->set_data($formdata);
 $mform->display();
 
+
+// Merging course files.=========================================================================================
+
+$flag = 0;
+
 if ($data = $mform->get_data()) {
     if (!empty($data->save)) {
+        $flag = 1;
 
         // Code for merging all the course pdfs. ---------------------------------------------------
         // Merge all course pdf files and store the merged document at a temporary location.
+        $context = context_course::instance($course->id);
 
         $mergedpdf = $tempdirpath . uniqid('mergedfile_') . '.pdf'; // Path to the merged pdf document with unique filename.
-
         // Merge all the pdf files in the course using pdftk.
         $cmd = "pdftk ";
         // Add each pdf file to the command.
-        foreach($arr as $pdffile) {
+        foreach($course_files as $pdffile) {
             $cmd .= $pdffile . " ";
         }
         $cmd .= " output $mergedpdf";
@@ -268,10 +274,9 @@ if ($data = $mform->get_data()) {
         $tempfilename = uniqid('latexfile_');
         $latexfilename = $tempdirpath . $tempfilename;
         $latexfile = $latexfilename . '.tex';
-
         $latexfileinfo = array (
                 'contextid' => $context->id,
-                'component' => 'mod_resource',
+                'component' => 'tool_mergefiles',
                 'filearea'  => 'content',
                 'itemid'    => 0,
                 'filepath'  => '/',
@@ -306,10 +311,14 @@ if ($data = $mform->get_data()) {
 
         $result2 = shell_exec("pdftk $mergedpdf multistamp " . $latexfilename . ".pdf output $stampedpdf");
 
-        $stampedfilename = uniqid('stampedfile_') . '.pdf';
+        // Get current day, month and year for current user.
+        $date = new DateTime("now", core_date::get_user_timezone_object());
+        $timestamp = userdate($date->getTimestamp(), '%Y-%d-%m_%R');
+
+        $stampedfilename = 'Mergedpdf_' . $timestamp . '.pdf';
         $stampedfileinfo = array (
                 'contextid' => $context->id,
-                'component' => 'mod_resource',
+                'component' => 'tool_mergefiles',
                 'filearea'  => 'content',
                 'itemid'    => 0,
                 'filepath'  => '/',
@@ -333,10 +342,55 @@ if ($data = $mform->get_data()) {
                 $stampedfile->get_filepath(),
                 $stampedfile->get_filename());
 
-        rmdirr($tempdir);
-        echo get_string('mergedpdfdoc', 'report_mergefiles') . " | " . "<a $class $extra href=\"" . $stampedfileurl . "\">" . $icon . get_string('availablehere', 'report_mergefiles') . "</a>";
+        $latexfile1->delete();
+        echo get_string('mergedpdfdoc', 'tool_mergefiles') . " | " . "<a $class $extra href=\"" . $stampedfileurl . "\">" . $icon . get_string('availablehere', 'tool_mergefiles') . "</a>";
 
     }
 }
 
+
+// Listing previously merged pdf files.==========================================================================
+
+$context = context_course::instance($course->id);
+$merged_files = $fs->get_area_files($context->id, 'tool_mergefiles', 'content', 0, 'sortorder DESC, timecreated DESC', false);
+
+if ($merged_files) {
+
+    // Create table to show a list of previously merged files.
+    $table1 = new html_table();
+    $table1->attributes['class'] = 'generaltable mod_index';
+    $table1->caption = get_string('mergedfiles', 'tool_mergefiles');
+
+    $table1->head = array (
+            'Merged file',
+            'Merged on',
+            $strsize);
+    $table1->align = array (
+            'left',
+            'left',
+            'left');
+
+    foreach ($merged_files as $file) {
+        static $i = 0;
+        // Skip the newly created stamped file and show the previously merged files.
+        if ($flag && ($file == $stampedfile)) {
+            continue;
+        }
+
+        if ($i < 3) { // Limiting to last three merged files.
+            $fileurl = moodle_url::make_pluginfile_url($file->get_contextid(), $file->get_component(), $file->get_filearea(), $file->get_itemid(), $file->get_filepath(), $file->get_filename());
+            $table1->data[] = array (
+                    "<a $class $extra href=\"" . $fileurl . "\">" . $icon . $file->get_filename() . "</a>",
+                    userdate($file->get_timecreated()),
+                    number_format((($file->get_filesize() / 1000) / 1000), 2) . ' ' . $strsizemb);
+        } else {
+            $file->delete();
+        }
+        $i++;
+    }
+    echo html_writer::table($table1);
+
+}
+
+rmdirr($tempdir);
 echo $OUTPUT->footer();

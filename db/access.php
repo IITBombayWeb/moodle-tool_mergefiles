@@ -17,7 +17,7 @@
 /**
  * Capabilities
  *
- * This files lists capabilites related to report_mergefiles
+ * This files lists capabilites related to tool_mergefiles
  *
  * @package    tool_mergefiles
  * @copyright  2017 IIT Bombay
@@ -34,12 +34,10 @@ $capabilities = array(
         'captype' => 'read',
         'contextlevel' => CONTEXT_COURSE,
         'archetypes' => array(
-//             'admin' => CAP_ALLOW,
             'teacher' => CAP_ALLOW,
             'editingteacher' => CAP_ALLOW,
             'manager' => CAP_ALLOW
         ),
-//         'clonepermissionsfrom' => 'coursereport/log:view',
     ),
 );
 

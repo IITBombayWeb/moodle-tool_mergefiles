@@ -17,8 +17,6 @@
 /**
  * Libs, public API.
  *
- * NOTE: page type not included because there can not be any blocks in popups
- *
  * @package    tool_mergefiles
  * @copyright  2017 IIT Bombay
  * @author     Kashmira Nagwekar
@@ -28,12 +26,12 @@
 defined('MOODLE_INTERNAL') || die;
 
 /**
- * This function extends the navigation with the report items
+ * This function extends the navigation with the course settings.
  *
  * @global stdClass       $CFG
  * @global core_renderer  $OUTPUT
  * @param navigation_node $navigation The navigation node to extend
- * @param stdClass        $course     The course to object for the report
+ * @param stdClass        $course     The course to object for the tool
  * @param context         $context    The context of the course
  */
 function tool_mergefiles_extend_navigation_course($navigation, $course, $context) {
@@ -48,4 +46,65 @@ function tool_mergefiles_extend_navigation_course($navigation, $course, $context
     }
 }
 
-// function <component>_extend_navigation_course(navigation_node $parentnode, stdClass $course, context_course $context);
+/**
+ * Serves the merged files.
+ *
+ * @package  tool_mergefiles
+ * @category files
+ * @param stdClass $course course object
+ * @param stdClass $cm course module object
+ * @param stdClass $context context object
+ * @param string $filearea file area
+ * @param array $args extra arguments
+ * @param bool $forcedownload whether or not force download
+ * @param array $options additional options affecting the file serving
+ * @return bool false if file not found, does not return if found - just send the file
+ */
+function tool_mergefiles_pluginfile($course, $cm, $context, $filearea, $args, $forcedownload, array $options=array()) {
+    // Check the contextlevel is as expected - if your plugin is a block, this becomes CONTEXT_BLOCK, etc.
+    if ($context->contextlevel != CONTEXT_COURSE) {
+        return false;
+    }
+
+    // Make sure the filearea is one of those used by the plugin.
+    if ($filearea !== 'content') {
+        return false;
+    }
+
+    // Make sure the user is logged in and has access to the module (plugins that are not course modules should leave out the 'cm' part).
+    require_login($course, true);
+
+    // Check the relevant capabilities - these may vary depending on the filearea being accessed.
+    if (!has_capability('tool/mergefiles:view', $context)) {
+        return false;
+    }
+
+    // Leave this line out if you set the itemid to null in make_pluginfile_url (set $itemid to 0 instead).
+    $itemid = array_shift($args); // The first item in the $args array.
+
+    // Use the itemid to retrieve any relevant data records and perform any security checks to see if the
+    // user really does have access to the file in question.
+
+    // Extract the filename / filepath from the $args array.
+    $filename = array_pop($args); // The last item in the $args array.
+    if (!$args) {
+        $filepath = '/'; // $args is empty => the path is '/'
+    } else {
+        $filepath = '/'.implode('/', $args).'/'; // $args contains elements of the filepath
+    }
+
+    // Retrieve the file from the Files API.
+    $fs = get_file_storage();
+    $file = $fs->get_file($context->id, 'tool_mergefiles', $filearea, $itemid, $filepath, $filename);
+    if (!$file) {
+        return false; // The file does not exist.
+    }
+
+    $sendfileoptions = ['filename' => $file->get_filename()];
+    // We can now send the file back to the browser - in this case with a cache lifetime of 1 day and no filtering.
+    // From Moodle 2.3, use send_stored_file instead.
+    $forcedownload = true;
+//     send_file($file, $file->get_filename(), 86400, 0, $forcedownload, $options);
+//     send_file($file, $file->get_filename(), null, 0, false, $forcedownload, 'pdf', false, $options);
+    send_stored_file($file, null, 0, $forcedownload, $options);
+}

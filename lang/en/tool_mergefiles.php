@@ -23,12 +23,14 @@
  * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-$string['availablehere']    = 'Available here!';
-$string['heading']          = "Course files";
+$string['availablehere']    = 'Available here!<br>';
+$string['coursefiles']      = 'Course files <br> <h6>(Note: Files in pdf format only) </h6>';
+$string['heading']          = 'Course files';
 $string['mergefiles']       = 'Merge PDF Files';
+$string['mergedfiles']      = 'Merged PDF files <br> <h6>(List of recently merged pdf files.) </h6>';
 $string['mergefiles:view']  = 'View merged pdf file';
-$string['mergedpdfdoc']     = 'Merged PDF Document';
+$string['mergedpdfdoc']     = '<br><b>Newly merged pdf document</b>';
 $string['mergeddoc']        = 'Merged document';
-$string['note']             = "(Note: Files in pdf format only) <br><br>";
+$string['note']             = '(Note: Files in pdf format only) <br><br>';
 $string['pluginname']       = 'Merge PDF Files';
 $string['pluginsummary']    = 'Merges PDF documents in a course.';
