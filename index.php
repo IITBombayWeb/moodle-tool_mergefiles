@@ -354,7 +354,7 @@ if ($data = $mform->get_data()) {
 $context = context_course::instance($course->id);
 $merged_files = $fs->get_area_files($context->id, 'tool_mergefiles', 'content', 0, 'sortorder DESC, timecreated DESC', false);
 
-if ($merged_files) {
+if (count($merged_files) > 1) {
 
     // Create table to show a list of previously merged files.
     $table1 = new html_table();
